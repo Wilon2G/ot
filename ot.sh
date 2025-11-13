@@ -114,6 +114,10 @@ OPTIONS:
 
     --default                               Ignores the configuration and restores the default behaviour to open terminals using the configured nicknames
 
+CONFIGURATION:
+
+    Config file default location --> /usr/ot.conf.json
+
 ____HALP
 }
 
