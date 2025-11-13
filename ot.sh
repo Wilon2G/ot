@@ -2,24 +2,35 @@
 
 path_to_config_file="/usr/ot.conf.json"
 if test -f ${path_to_config_file}; then
-    n='\0'
+    parsed_verbose=$( jq '.verbose_by_default' --raw-output "$path_to_config_file" )
+    parsed_split_pattern=$( jq '.split_pattern' --raw-output "$path_to_config_file" )
+    parsed_terminal_limit=$( jq '.default_terminal_limit' --raw-output "$path_to_config_file" )
+    parsed_extra_title=$( jq '.default_extra_title' --raw-output "$path_to_config_file" )
+    parsed_profile=$( jq '.default_profile' --raw-output "$path_to_config_file" )
+    parsed_join_open=$( jq '.open_terminals_together_by_default' --raw-output "$path_to_config_file" )
+    parsed_log_file=$( jq '.log_file' --raw-output "$path_to_config_file" )
+    parsed_user=$( jq ".default_user" --raw-output "$path_to_config_file" )
+    parsed_pass=$( jq ".default_pass" --raw-output "$path_to_config_file" )
+    parsed_autocomplete_ip=$( jq ".autocomplete_ip" --raw-output "$path_to_config_file" )
+    parsed_autocomplete_by_defult=$( jq ".autocomplete_by_default" --raw-output "$path_to_config_file" )
 else
     echo "Warning --> Config file not found"
+    parsed_verbose="null"
+    parsed_split_pattern="null"
+    parsed_terminal_limit="null"
+    parsed_extra_title="null"
+    parsed_profile="null"
+    parsed_join_open="null"
+    parsed_log_file="null"
+    parsed_user="null"
+    parsed_pass="null"
+    parsed_autocomplete_ip="null"
+    parsed_autocomplete_by_defult="null"
 fi
 
 #path_to_json_config_file="/usr/ot.conf.json"
 
 #Parsed configs from the json config file
-parsed_verbose=$( jq '.verbose_by_default' --raw-output "$path_to_config_file" )
-parsed_split_pattern=$( jq '.split_pattern' --raw-output "$path_to_config_file" )
-parsed_terminal_limit=$( jq '.default_terminal_limit' --raw-output "$path_to_config_file" )
-parsed_extra_title=$( jq '.default_extra_title' --raw-output "$path_to_config_file" )
-parsed_profile=$( jq '.default_profile' --raw-output "$path_to_config_file" )
-parsed_join_open=$( jq '.open_terminals_together_by_default' --raw-output "$path_to_config_file" )
-parsed_log_file=$( jq '.log_file' --raw-output "$path_to_config_file" )
-parsed_user=$( jq ".default_user" --raw-output "$path_to_config_file" )
-parsed_pass=$( jq ".default_pass" --raw-output "$path_to_config_file" )
-parsed_autocomplete_ip=$( jq ".autocomplete_ip" --raw-output "$path_to_config_file" )
 
 #Configurable params
 [[ "$parsed_verbose" != "null" ]] && verbose="$parsed_verbose" || verbose=false 
@@ -32,6 +43,7 @@ parsed_autocomplete_ip=$( jq ".autocomplete_ip" --raw-output "$path_to_config_fi
 [[ "$parsed_user" != "null" ]] && default_user="$parsed_user" || default_user="root" 
 [[ "$parsed_pass" != "null" ]] && default_pass="$parsed_pass" || default_password="" 
 [[ "$parsed_autocomplete_ip" != "null" ]] && autocomplete_ip="$parsed_autocomplete_ip" || autocomplete_ip="" 
+[[ "$parsed_autocomplete_by_default" != "null" ]] && autocomplete="$parsed_autocomplete_by_defult" || autocomplete=false
 
 
 comment(){
@@ -55,8 +67,14 @@ Log "=====OT init====="
 #Non-configurable params(for now)
 available_vms=""
 auto_authenticate=true
-DEFAULT=false
-[[ "$autocomplete_ip" != "" ]] && autocomplete=true || autocomplete=false
+if $autocomplete; then
+    DEFAULT=false
+    if [[ "$autocomplete_ip" == "" ]]; then
+        echo "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
+    fi
+else
+    DEFAULT=true
+fi
 terminals_to_open=()
 
 Log "Parameters: Split pattern --> $split_pattern || Verbose --> $verbose || Terminal limit --> $terminal_limit || Default extra title --> $terminal_extra_title || Default profile --> $terminator_profile || Open together --> $join_open"
@@ -74,25 +92,27 @@ Usage: ot [-h ] [-n NUMBER_OF_TERMINALS ] [-j(v,h,g) TERMINAL_NUMBER ]
           [-t TITLE ] [-v ]
 
 OPTIONS:
-    -v, --verbose                                           Shows all comments
+    -v, --verbose                           Shows all comments
 
-    -h, --help                                              Shows help page
+    -h, --help                              Shows help page
 
-    -n NUMBER_OF_TERMINALS                                  Adds n amount of terminals in one go
+    -n <NUMBER_OF_TERMINALS>                Adds n amount of terminals in one go
 
-    -j TERMINAL_NUMBER, --join TERMINAL_NUMBER,             Opens all terminals in the same window with the default split pattern
+    -j/--join <TERMINAL_NUMBER>             Opens all terminals in the same window with the default split pattern
 
-    -jv TERMINAL_NUMBER, --joinv TERMINAL_NUMBER,           Opens all terminals in the same window with vertical split pattern
+    -jv/--joinv <TERMINAL_NUMBER>           Opens all terminals in the same window with vertical split pattern
 
-    -jh TERMINAL_NUMBER, --joinh TERMINAL_NUMBER,           Opens all terminals in the same window with horizontal split pattern
+    -jh/--joinh <TERMINAL_NUMBER>           Opens all terminals in the same window with horizontal split pattern
 
-    -jg TERMINAL_NUMBER, --joing TERMINAL_NUMBER,           Opens all terminals in the same window with grid split pattern
+    -jg/--joing <TERMINAL_NUMBER>           Opens all terminals in the same window with grid split pattern
 
-    -t TITLE, --title TITLE                                 Adds extra text to the title of the terminal
+    -t/--title <TITLE>                      Adds extra text to the title of the terminal
 
-    --see                                                   Shows the current vms on the mcahine and thir IPs
+    --see                                   Shows the current vms on the mcahine and thir IPs
 
-    --no-auth                                               The srcipt will not try to use the default password, it will be asked from the user
+    --no-auth                               The srcipt will not try to use the default password, it will be asked from the user
+
+    --default                               Ignores the configuration and restores the default behaviour to open terminals using the configured nicknames
 
 ____HALP
 }
@@ -110,7 +130,7 @@ Get_connection_command(){
     connection_username="$default_user"
     connection_password="$default_pass"
     if $autocomplete; then
-        connection_ip="192.168.56.$terminal"
+        connection_ip="$autocomplete_ip$terminal"
     else
         connection_ip=$terminal
     fi

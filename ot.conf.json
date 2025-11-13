@@ -9,6 +9,7 @@
     "default_user":"root",
     "default_pass":"my_password",
     "autocomplete_ip":"192.168.56.",
+    "autocomplete_by_default":true,
     "nicknames":{
         "vm1":"1",
         "my_vm":"1",
