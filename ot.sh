@@ -1,49 +1,84 @@
 #!/bin/bash 
 
-path_to_config_file="/usr/ot.conf.json"
+#Configurable params default values
+verbose=false 
+log_file="/var/log/ot.log" 
+split_pattern="grid" 
+terminal_limit=5 
+terminal_extra_title="" 
+terminator_profile="Default" 
+join_open=false 
+default_user="root" 
+default_pass="" 
+autocomplete_ip="" 
+autocomplete=false
+
+path_to_config_file="/etc/ot.conf.json"
 if test -f ${path_to_config_file}; then
-    parsed_verbose=$( jq '.verbose_by_default' --raw-output "$path_to_config_file" )
-    parsed_split_pattern=$( jq '.split_pattern' --raw-output "$path_to_config_file" )
-    parsed_terminal_limit=$( jq '.default_terminal_limit' --raw-output "$path_to_config_file" )
-    parsed_extra_title=$( jq '.default_extra_title' --raw-output "$path_to_config_file" )
-    parsed_profile=$( jq '.default_profile' --raw-output "$path_to_config_file" )
-    parsed_join_open=$( jq '.open_terminals_together_by_default' --raw-output "$path_to_config_file" )
-    parsed_log_file=$( jq '.log_file' --raw-output "$path_to_config_file" )
-    parsed_user=$( jq ".default_user" --raw-output "$path_to_config_file" )
-    parsed_pass=$( jq ".default_pass" --raw-output "$path_to_config_file" )
-    parsed_autocomplete_ip=$( jq ".autocomplete_ip" --raw-output "$path_to_config_file" )
-    parsed_autocomplete_by_defult=$( jq ".autocomplete_by_default" --raw-output "$path_to_config_file" )
+    #Parsed configs from the json config file
+    parsed_verbose=$( jq '.verbose_by_default' --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_split_pattern=$( jq '.split_pattern' --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_terminal_limit=$( jq '.default_terminal_limit' --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_extra_title=$( jq '.default_extra_title' --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_profile=$( jq '.default_profile' --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_join_open=$( jq '.open_terminals_together_by_default' --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_log_file=$( jq '.log_file' --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_user=$( jq ".default_user" --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_pass=$( jq ".default_pass" --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_autocomplete_ip=$( jq ".autocomplete_ip" --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_autocomplete_by_defult=$( jq ".autocomplete_by_default" --raw-output "$path_to_config_file" 2>/dev/null )
+    
+    if [[ "$parsed_verbose" != "null" ]]; then
+        verbose="$parsed_verbose"
+    fi
+    if [[ "$parsed_log_file" != "null" ]]; then
+        log_file="$parsed_log_file"
+    fi
+    if [[ "$parsed_split_pattern" != "null" ]]; then
+        split_pattern="$parsed_split_pattern"
+    fi
+    if [[ "$parsed_terminal_limit" != "null" ]]; then
+        terminal_limit="$parsed_terminal_limit"
+    fi
+    if [[ "$parsed_extra_title" != "null" ]]; then
+        terminal_extra_title="$parsed_extra_title"
+    fi
+    if [[ "$parsed_profile" != "null" ]]; then
+        terminator_profile="$parsed_profile"
+    fi
+    if [[ "$parsed_join_open" != "null" ]]; then
+        join_open="$parsed_join_open"
+    fi
+    if [[ "$parsed_user" != "null" ]]; then
+        default_user="$parsed_user"
+    fi
+    if [[ "$parsed_pass" != "null" ]]; then
+        default_pass="$parsed_pass"
+    fi
+    if [[ "$parsed_autocomplete_ip" != "null" ]]; then
+        autocomplete_ip="$parsed_autocomplete_ip"
+    fi
+    if [[ "$parsed_autocomplete_by_default" != "null" ]]; then
+        autocomplete="$parsed_autocomplete_by_defult"
+    fi
 else
     echo "Warning --> Config file not found"
-    parsed_verbose="null"
-    parsed_split_pattern="null"
-    parsed_terminal_limit="null"
-    parsed_extra_title="null"
-    parsed_profile="null"
-    parsed_join_open="null"
-    parsed_log_file="null"
-    parsed_user="null"
-    parsed_pass="null"
-    parsed_autocomplete_ip="null"
-    parsed_autocomplete_by_defult="null"
 fi
 
-#path_to_json_config_file="/usr/ot.conf.json"
 
-#Parsed configs from the json config file
 
-#Configurable params
-[[ "$parsed_verbose" != "null" ]] && verbose="$parsed_verbose" || verbose=false 
-[[ "$parsed_log_file" != "null" ]] && log_file="$parsed_log_file" || log_file="/var/log/ot.log" 
-[[ "$parsed_split_pattern" != "null" ]] && split_pattern="$parsed_split_pattern" || split_pattern="grid" 
-[[ "$parsed_terminal_limit" != "null" ]] && terminal_limit="$parsed_terminal_limit" || terminal_limit=5 
-[[ "$parsed_extra_title" != "null" ]] && terminal_extra_title="$parsed_extra_title" || terminal_extra_title="" 
-[[ "$parsed_profile" != "null" ]] && terminator_profile="$parsed_profile" || terminator_profile="Default" 
-[[ "$parsed_join_open" != "null" ]] && join_open="$parsed_join_open" || join_open=false 
-[[ "$parsed_user" != "null" ]] && default_user="$parsed_user" || default_user="root" 
-[[ "$parsed_pass" != "null" ]] && default_pass="$parsed_pass" || default_password="" 
-[[ "$parsed_autocomplete_ip" != "null" ]] && autocomplete_ip="$parsed_autocomplete_ip" || autocomplete_ip="" 
-[[ "$parsed_autocomplete_by_default" != "null" ]] && autocomplete="$parsed_autocomplete_by_defult" || autocomplete=false
+#Configurable params default values
+#[[ "$parsed_verbose" != "null" ]] && verbose="$parsed_verbose" || verbose=false 
+#[[ "$parsed_log_file" != "null" ]] && log_file="$parsed_log_file" || log_file="/var/log/ot.log" 
+#[[ "$parsed_split_pattern" != "null" ]] && split_pattern="$parsed_split_pattern" || split_pattern="grid" 
+#[[ "$parsed_terminal_limit" != "null" ]] && terminal_limit="$parsed_terminal_limit" || terminal_limit=5 
+#[[ "$parsed_extra_title" != "null" ]] && terminal_extra_title="$parsed_extra_title" || terminal_extra_title="" 
+#[[ "$parsed_profile" != "null" ]] && terminator_profile="$parsed_profile" || terminator_profile="Default" 
+#[[ "$parsed_join_open" != "null" ]] && join_open="$parsed_join_open" || join_open=false 
+#[[ "$parsed_user" != "null" ]] && default_user="$parsed_user" || default_user="root" 
+#[[ "$parsed_pass" != "null" ]] && default_pass="$parsed_pass" || default_password="" 
+#[[ "$parsed_autocomplete_ip" != "null" ]] && autocomplete_ip="$parsed_autocomplete_ip" || autocomplete_ip="" 
+#[[ "$parsed_autocomplete_by_default" != "null" ]] && autocomplete="$parsed_autocomplete_by_defult" || autocomplete=false
 
 
 comment(){
@@ -65,7 +100,9 @@ Log(){
 Log "=====OT init====="
 
 #Non-configurable params(for now)
+show_all=false
 available_vms=""
+vm_ips=()
 auto_authenticate=true
 if $autocomplete; then
     DEFAULT=false
@@ -108,15 +145,44 @@ OPTIONS:
 
     -t/--title <TITLE>                      Adds extra text to the title of the terminal
 
-    --see                                   Shows the current vms on the mcahine and thir IPs
+    --see                                   Shows the current available vms on the machine and thir IPs
+
+    --see-all                               Shows the current available and no avalable vms on the machine and thir IPs/MAC adresses
 
     --no-auth                               The srcipt will not try to use the default password, it will be asked from the user
 
     --default                               Ignores the configuration and restores the default behaviour to open terminals using the configured nicknames
 
-CONFIGURATION:
-
+CONFIGURATION FILE:
     Config file default location --> /usr/ot.conf.json
+
+CONFIGURATION PARAMS:
+    default_extra_title                     Sets a title that is displayed with the terminal title, can be overwritten eith the -t/--title option
+
+    open_terminals_together_by_default      When true it will open all the terminals passed to ot in join mode using the default split pattern, can be 
+                                            overwitten with the -s/--separated option
+
+    default_profile                         Selects the default profile for the terminator terminals
+
+    default_terminal_limit                  Sets a limit on the ammount of terminals you can add to ot with the -n option to prevent accidents
+
+    split_pattern                           Sets the default split patter that will be used when using the -j/--join options. The options are "grid", "vertical", "horizontal" 
+
+    default_user                            Sets the user that will be used when using the autocomplete mode to sshpass to the vm
+
+    default_pass                            Sets the password that will be used when using the autocomplete mode to sshpass to the vm
+
+    autocomplete_ip                         Sets the ip section that is added to the ip for the autocomplete connection when the sshpass 
+                                            is executed the ip is <autocomplete_ip><terminal_input_by_user>
+
+    autocomplete_by_default                 Sets the autocomplete feature on/off by default
+
+    nicknames                               When the default connection mode is used, ot will look for the configured nicknames on the configuration file, 
+                                            and grab their connectio_id in order to lookup the connection data. Several nicknames can have the same connection_id
+
+    connections                             Connections are configured with a connection_id and some connection data. The connection data must 
+                                            include the complete ip of the vm that we want that connection to use. The connection can also have a
+                                            username and password configured, if not, the default_user and the default_pass will be used instead
 
 ____HALP
 }
@@ -139,7 +205,7 @@ Get_connection_command(){
         connection_ip=$terminal
     fi
 
-    #hardcoded Execptions --
+    #hardcoded Execptions -- TODO remove
     [[ $terminal = 121 ]] && connection_password="password123"
 
     if $DEFAULT; then
@@ -315,11 +381,35 @@ See_avaiable_machines(){
             vm_name_uuid=($(echo $entry | tr -d "}" | tr "{" " "))
             vm_name=${vm_name_uuid[0]}
             vm_uuid=${vm_name_uuid[1]}
-            vm_details=($(vboxmanage showvminfo --details $vm_uuid | grep "Attachment: Host-only Interface" | tr -d " " | tr "," ":" | tr ":" " "))
-            mac_address=${vm_details[2]}
-            vm_ip=($(vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address=$mac_address | head -1))
-            echo "[$i] $vm_name --> IP: ${vm_ip[2]}"
-            ((i++))
+            vm_host_only_mac_addresses=($(vboxmanage showvminfo --details $vm_uuid | grep "Attachment: Host-only Interface" | grep -o 'MAC: [0-9A-F]\{12\}' | cut -d ' ' -f 2))
+            vm_bridged_mac_addresses=($(vboxmanage showvminfo --details $vm_uuid | grep "Attachment: Bridged Interface" | grep -o 'MAC: [0-9A-F]\{12\}' | cut -d ' ' -f 2))
+
+            for mac_address in ${vm_host_only_mac_addresses[@]}; do
+                vm_ip=($(vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address=$mac_address 2>/dev/null | head -1))
+                if [[ ${vm_ip[2]} != "" ]]; then
+                    echo "[$i] $vm_name --> IP: ${vm_ip[2]}"
+                    vm_ips+=(${vm_ip[2]})
+                    ((i++))
+                fi
+            done
+
+            for mac_address in ${vm_bridged_mac_addresses[@]}; do
+                formatted_mac_address=$(echo $mac_address | sed 's/\(..\)/\1:/g; s/:$//' )
+                vm_ip=($(arp -a | grep -i $formatted_mac_address))
+                if [[ ${vm_ip[1]} != "" ]]; then
+                    formatted_vm_ip=$(echo ${vm_ip[1]} | tr -d "()" )
+                    echo "[$i] $vm_name --> IP: $formatted_vm_ip"
+                    vm_ips+=($formatted_vm_ip)
+                    ((i++))
+                else
+                    if $show_all; then
+                        echo "[-] $vm_name --> IP: ??? // mac: $formatted_mac_address"
+                    fi
+                fi
+            done
+            #vm_ip=($(vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address=$mac_address 2>/dev/null | head -1))
+            #formatted_mac_address=$(echo $mac_address | sed 's/\(..\)/\1:/g; s/:$//' )
+            #echo "[$i] $vm_name --> IP: ${vm_ip[2]}"
         done
     fi
 }
@@ -352,6 +442,13 @@ while [[ $# -gt 0 ]]; do
             join_open=false
             ;;
         --see)
+            Get_available_vms
+            See_avaiable_machines
+            exit 0
+            shift
+            ;;
+        --see-all)
+            show_all=true
             Get_available_vms
             See_avaiable_machines
             exit 0
@@ -436,20 +533,11 @@ if [[ ${#terminals_to_open[@]} -eq 0 ]]; then
     See_avaiable_machines
     read -p "--> " selected_vm
     ((selected_vm--))
-    if [[ "${available_vms[$selected_vm]}" == "" ]]; then
-        echo "Error, please select from the available machines"
-        exit 1
-    fi
-    vm_name_uuid=($(echo ${available_vms[$selected_vm]} | tr -d "}" | tr "{" " "))
-    vm_uuid=${vm_name_uuid[1]}
-    vm_details=($(vboxmanage showvminfo --details $vm_uuid | grep "Attachment: Host-only Interface" | tr -d " " | tr "," ":" | tr ":" " "))
-    mac_address=${vm_details[2]}
-    vm_ip=($(vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address=$mac_address | head -1))
-    vm_ip="${vm_ip[2]}"
+
     auto_authenticate=false
     autocomplete=false
-    command_to_execute=$(Get_connection_command "$vm_ip")
-    terminator -T "${vm_name_uuid[0]}" -p "$terminator_profile" -x "$command_to_execute"
+    command_to_execute=$(Get_connection_command "${vm_ips[$selected_vm]}")
+    terminator -T "${vm_ips[$selected_vm]}" -p "$terminator_profile" -x "$command_to_execute"
     exit 0
 fi
 

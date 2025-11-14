@@ -5,7 +5,7 @@
     "default_profile":"Default",
     "default_terminal_limit":8,
     "split_pattern":"grid",
-    "log_file":"/home/my_user/ot.log",
+    "log_file":"/var/log/ot.log",
     "default_user":"root",
     "default_pass":"my_password",
     "autocomplete_ip":"192.168.56.",
