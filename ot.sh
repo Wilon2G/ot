@@ -107,6 +107,7 @@ auto_authenticate=true
 if $autocomplete; then
     DEFAULT=false
     if [[ "$autocomplete_ip" == "" ]]; then
+        Log "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
         echo "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
     fi
 else
@@ -262,11 +263,11 @@ Get_conn_ip(){
 Process_title(){
     terminal=$1
     only_extra=${terminal_extra_title:0:1}
-
+    #terminal_extra_title=$( echo ${terminal_extra_title[@]} | tr -d " ")
     if [[ "$only_extra" = "-" ]]; then
         echo ${terminal_extra_title:1}
     else
-        echo "${terminal_extra_title} $terminal"
+        echo "${terminal_extra_title}$terminal"
     fi
 }
 
@@ -287,7 +288,7 @@ Find_terminal(){
             return 0
         fi
     done
-    Log "Terminal: $terminal  --not found"
+    Log "Terminal: $title  --not found"
     return 1
 }
 
@@ -352,6 +353,7 @@ Open_together(){
     join_title="$(Get_conn_ip)"
 
     #We find if there is already a terminal opened with that title, since we get the uuid of the terminal via de window title, we need the join terminals to have unique titles
+    join_title=$(Process_title $join_title)
     title_num=0
     og_join_title=$join_title
     while Find_terminal "$join_title";
@@ -361,7 +363,7 @@ Open_together(){
         join_title="$og_join_title~$title_num" #If we have a duplicated title we add ~n ti te title to keep it unique
     done
 
-    join_title="${terminal_extra_title}${join_title}"
+    #join_title="${terminal_extra_title}${join_title}"
     first_bash_command=$(Get_connection_command "${terminals_to_open[0]}") #We get the connection command for the first terminal we open, the parent of all the rest
     terminator -p "$terminator_profile" -T "$join_title" -x "$first_bash_command"
     comment "finding terminal $join_title"
@@ -422,8 +424,8 @@ Get_available_vms(){
 Test(){
     comment "Verbose!"
     Log "Test --!"
-    echo "=== Testing ==="
-
+    echo "=== Testing title processing ==="
+    echo $(Process_title "$1" )
 
     sleep 3
     echo "Test done"
@@ -434,7 +436,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --test)
             echo "Testing . . ."
-            Test $2 
+            Test "$2" 
             exit 0
             ;;
         -s | --separated)
@@ -507,7 +509,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         -t|--title)
             Log "Switching extra title from [ $terminal_extra_title ] to [ $2 ]"
-            terminal_extra_title="$2"
+            terminal_extra_title=$( echo "$2" | tr -d " " )
             shift 2
             ;;
         --default)
