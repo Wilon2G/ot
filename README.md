@@ -1,4 +1,4 @@
-#Open Terminal -- ot
+# Open Terminal -- ot
 
 This is a small script used to manage ssh connection (primarily with virtualbox) with terminator terminals.
 
