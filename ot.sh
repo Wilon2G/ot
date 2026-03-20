@@ -453,7 +453,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -c|--show-config)
-            cat /etc/ot.conf.json
+            jq "." "$path_to_config_file" 
             exit 0
             shift
             ;;
