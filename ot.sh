@@ -136,23 +136,27 @@ OPTIONS:
 
     -n <NUMBER_OF_TERMINALS>                Adds n amount of terminals in one go
 
-    -j/--join <TERMINAL_NUMBER>             Opens all terminals in the same window with the default split pattern
+    -j, --join <TERMINAL_NUMBER>            Opens all terminals in the same window with the default split pattern
 
-    -jv/--joinv <TERMINAL_NUMBER>           Opens all terminals in the same window with vertical split pattern
+    -jv, --joinv <TERMINAL_NUMBER>          Opens all terminals in the same window with vertical split pattern
 
-    -jh/--joinh <TERMINAL_NUMBER>           Opens all terminals in the same window with horizontal split pattern
+    -jh, --joinh <TERMINAL_NUMBER>          Opens all terminals in the same window with horizontal split pattern
 
-    -jg/--joing <TERMINAL_NUMBER>           Opens all terminals in the same window with grid split pattern
+    -jg, --joing <TERMINAL_NUMBER>          Opens all terminals in the same window with grid split pattern
 
-    -t/--title <TITLE>                      Adds extra text to the title of the terminal
+    -t, --title <TITLE>                     Adds extra text to the title of the terminal
 
-    --see                                   Shows the current available vms on the machine and thir IPs
+    --see                                   Shows the current available vms on the machine and their IPs
 
     --see-all                               Shows the current available and no avalable vms on the machine and thir IPs/MAC adresses
 
     --no-auth                               The srcipt will not try to use the default password, it will be asked from the user
 
-    --default                               Ignores the configuration and restores the default behaviour to open terminals using the configured nicknames
+    -d, --default                           Ignores the configuration and restores the default behaviour to open terminals using the configured nicknames
+
+    -a, --autocomplete                      Ignores the configuration and sets the autocomplete mode ON. Disables DEFAULT mode
+
+    -c, --show-config                       Shows the configuration of the ot command
 
 CONFIGURATION FILE:
     Config file default location --> /usr/ot.conf.json
@@ -188,13 +192,11 @@ CONFIGURATION PARAMS:
 ____HALP
 }
 
-
 Find_connection_id(){
     nickname="$1"
     conn_id=$( jq ".nicknames | .\"$nickname\"" --raw-output "$path_to_config_file" )
     echo "$conn_id"
 }
-
 
 Get_connection_command(){
     terminal=$1
@@ -205,9 +207,6 @@ Get_connection_command(){
     else
         connection_ip=$terminal
     fi
-
-    #hardcoded Execptions -- TODO remove
-    [[ $terminal = 121 ]] && connection_password="password123"
 
     if $DEFAULT; then
         connection_id=$(Find_connection_id $terminal)
@@ -224,6 +223,7 @@ Get_connection_command(){
         fi
         connection_username=$( jq ".connections | .\"$connection_id\" | .user" --raw-output "$path_to_config_file" )
         connection_password=$( jq ".connections | .\"$connection_id\" | .password" --raw-output "$path_to_config_file" )
+        connection_title=$( jq ".connections | .\"$connection_id\" | .title" --raw-output "$path_to_config_file" )
         if [[ "$connection_username" == "null" ]]; then
             Log "Warning: no username defined for that nickname, using default username"
             connection_username="$default_user"
@@ -243,22 +243,10 @@ Get_connection_command(){
     fi
 }
 
-# Update this check for "-/--" unnecessary now
-Get_conn_ip(){
-    conns=("|")
-    for terminal in ${terminals_to_open[@]}
-    do
-        case $terminal in
-            -*|--*)
-                ;;
-            *)
-                conns+="$terminal|"
-                ;;
-        esac
-    done
+Get_join_title(){
+    conns=$(echo ${terminals_to_open[@]} | tr " " "|")
     echo "$conns"
 }
-
 
 Process_title(){
     terminal=$1
@@ -267,10 +255,9 @@ Process_title(){
     if [[ "$only_extra" = "-" ]]; then
         echo ${terminal_extra_title:1}
     else
-        echo "${terminal_extra_title}$terminal"
+        echo "${terminal_extra_title}~$terminal"
     fi
 }
-
 
 Find_terminal(){
     title="$@"
@@ -350,7 +337,7 @@ Split_terminals(){
 }
 
 Open_together(){
-    join_title="$(Get_conn_ip)"
+    join_title="$(Get_join_title)"
 
     #We find if there is already a terminal opened with that title, since we get the uuid of the terminal via de window title, we need the join terminals to have unique titles
     join_title=$(Process_title $join_title)
@@ -431,9 +418,18 @@ Test(){
     echo "Test done"
 }
 
+Kk(){
+    jq ".nicknames" "$path_to_config_file" 
+    jq ".connections" "$path_to_config_file" 
+
+}
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        -kk)
+            Kk
+            exit 0
+            ;;
         --test)
             echo "Testing . . ."
             Test "$2" 
@@ -453,6 +449,11 @@ while [[ $# -gt 0 ]]; do
             show_all=true
             Get_available_vms
             See_avaiable_machines
+            exit 0
+            shift
+            ;;
+        -c|--show-config)
+            cat /etc/ot.conf.json
             exit 0
             shift
             ;;
@@ -512,7 +513,13 @@ while [[ $# -gt 0 ]]; do
             terminal_extra_title=$( echo "$2" | tr -d " " )
             shift 2
             ;;
-        --default)
+        -a|--autocomplete)
+            Log "Warning: default mode disabled, ips will be autocompleted with the configured params"
+            autocomplete=true
+            DEFAULT=false
+            shift # past not done yet
+            ;;
+        -d|--default)
             Log "Warning: default mode enabled, nickname use enabled and turned on by default"
             DEFAULT=true
             shift # past not done yet
@@ -532,12 +539,19 @@ done
 if [[ ${#terminals_to_open[@]} -eq 0 ]]; then 
     echo "Select a terminal from your system:"
     Get_available_vms
+
+    if [[ "$available_vms" == "" ]]; then
+        echo "No available VMs"
+        exit 0
+    fi
+
     See_avaiable_machines
     read -p "--> " selected_vm
     ((selected_vm--))
 
-    auto_authenticate=false
+    #auto_authenticate=false
     autocomplete=false
+    DEFAULT=false
     command_to_execute=$(Get_connection_command "${vm_ips[$selected_vm]}")
     terminator -T "${vm_ips[$selected_vm]}" -p "$terminator_profile" -x "$command_to_execute"
     exit 0
