@@ -11,7 +11,12 @@ join_open=false
 default_user="root" 
 default_pass="" 
 autocomplete_ip="" 
-autocomplete=false
+
+#Operational mode types:
+#Default/nicknames --> 0
+#Autocomplete --> 1
+#Full IP/see & select --> 2
+OPER_MODE=0
 
 path_to_config_file="/etc/ot.conf.json"
 if test -f ${path_to_config_file}; then
@@ -27,7 +32,11 @@ if test -f ${path_to_config_file}; then
     parsed_pass=$( jq ".default_pass" --raw-output "$path_to_config_file" 2>/dev/null )
     parsed_autocomplete_ip=$( jq ".autocomplete_ip" --raw-output "$path_to_config_file" 2>/dev/null )
     parsed_autocomplete_by_defult=$( jq ".autocomplete_by_default" --raw-output "$path_to_config_file" 2>/dev/null )
+    parsed_authenticate=$( jq ".authenticate_by_default" --raw-output "$path_to_config_file" 2>/dev/null )
     
+    if [[ "$parsed_authenticate" != "null" ]]; then
+        auto_authenticate="$parsed_authenticate"
+    fi
     if [[ "$parsed_verbose" != "null" ]]; then
         verbose="$parsed_verbose"
     fi
@@ -60,26 +69,13 @@ if test -f ${path_to_config_file}; then
     fi
     if [[ "$parsed_autocomplete_by_default" != "null" ]]; then
         autocomplete="$parsed_autocomplete_by_defult"
+        if $autocomplete; then
+            OPER_MODE=1
+        fi
     fi
 else
     echo "Warning --> Config file not found"
 fi
-
-
-
-#Configurable params default values
-#[[ "$parsed_verbose" != "null" ]] && verbose="$parsed_verbose" || verbose=false 
-#[[ "$parsed_log_file" != "null" ]] && log_file="$parsed_log_file" || log_file="/var/log/ot.log" 
-#[[ "$parsed_split_pattern" != "null" ]] && split_pattern="$parsed_split_pattern" || split_pattern="grid" 
-#[[ "$parsed_terminal_limit" != "null" ]] && terminal_limit="$parsed_terminal_limit" || terminal_limit=5 
-#[[ "$parsed_extra_title" != "null" ]] && terminal_extra_title="$parsed_extra_title" || terminal_extra_title="" 
-#[[ "$parsed_profile" != "null" ]] && terminator_profile="$parsed_profile" || terminator_profile="Default" 
-#[[ "$parsed_join_open" != "null" ]] && join_open="$parsed_join_open" || join_open=false 
-#[[ "$parsed_user" != "null" ]] && default_user="$parsed_user" || default_user="root" 
-#[[ "$parsed_pass" != "null" ]] && default_pass="$parsed_pass" || default_password="" 
-#[[ "$parsed_autocomplete_ip" != "null" ]] && autocomplete_ip="$parsed_autocomplete_ip" || autocomplete_ip="" 
-#[[ "$parsed_autocomplete_by_default" != "null" ]] && autocomplete="$parsed_autocomplete_by_defult" || autocomplete=false
-
 
 comment(){
     if $verbose; then
@@ -103,16 +99,15 @@ Log "=====OT init====="
 show_all=false
 available_vms=""
 vm_ips=()
-auto_authenticate=true
-if $autocomplete; then
-    DEFAULT=false
+#auto_authenticate=true
+if [[ $OPER_MODE -eq 1 ]]; then
     if [[ "$autocomplete_ip" == "" ]]; then
         Log "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
         echo "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
+        exit 1
     fi
-else
-    DEFAULT=true
 fi
+
 terminals_to_open=()
 
 Log "Parameters: Split pattern --> $split_pattern || Verbose --> $verbose || Terminal limit --> $terminal_limit || Default extra title --> $terminal_extra_title || Default profile --> $terminator_profile || Open together --> $join_open"
@@ -202,13 +197,9 @@ Get_connection_command(){
     terminal=$1
     connection_username="$default_user"
     connection_password="$default_pass"
-    if $autocomplete; then
-        connection_ip="$autocomplete_ip$terminal"
-    else
-        connection_ip=$terminal
-    fi
 
-    if $DEFAULT; then
+    if [[ $OPER_MODE -eq 0 ]]; then
+
         connection_id=$(Find_connection_id $terminal)
         if [[ "$connection_id" == "null" ]]; then
             Log "ERROR: nickname $terminal not found in the configured nicknames, check the configuration or use the non-default mode"
@@ -233,6 +224,18 @@ Get_connection_command(){
             Log "Warning: no password defined for that nickname, using default password"
             connection_password="$default_pass"
         fi
+
+    elif [[ $OPER_MODE -eq 1 ]]; then
+
+        connection_ip="$autocomplete_ip$terminal"
+
+    elif [[ $OPER_MODE -eq 2 ]]; then
+
+        connection_ip=$terminal
+
+    else
+        Log "Error: Unknown operational mode $OPER_MODE"
+        exit 1
     fi
 
     Log "Command: Connecting to $connection_username@$connection_ip password --> $connection_password"
@@ -515,13 +518,12 @@ while [[ $# -gt 0 ]]; do
             ;;
         -a|--autocomplete)
             Log "Warning: default mode disabled, ips will be autocompleted with the configured params"
-            autocomplete=true
-            DEFAULT=false
+            OPER_MODE=1
             shift # past not done yet
             ;;
         -d|--default)
             Log "Warning: default mode enabled, nickname use enabled and turned on by default"
-            DEFAULT=true
+            OPER_MODE=0
             shift # past not done yet
             ;;
         -*|--*)
@@ -549,9 +551,7 @@ if [[ ${#terminals_to_open[@]} -eq 0 ]]; then
     read -p "--> " selected_vm
     ((selected_vm--))
 
-    #auto_authenticate=false
-    autocomplete=false
-    DEFAULT=false
+    OPER_MODE=2
     command_to_execute=$(Get_connection_command "${vm_ips[$selected_vm]}")
     terminator -T "${vm_ips[$selected_vm]}" -p "$terminator_profile" -x "$command_to_execute"
     exit 0
