@@ -77,21 +77,23 @@ else
     echo "Warning --> Config file not found"
 fi
 
-comment(){
-    if $verbose; then
-        echo $@
-    fi
-}
-
 if [[ -f "$log_file" ]]; then
-    comment "Log file exist"
+    if $verbose; then
+        echo "Log file exist"
+    fi
 else
-    comment "Log file does not exist"
+    if $verbose; then
+        echo "Log file does not exist"
+    fi
     touch "$log_file"
 fi
 
 Log(){
     echo "$(date) -- $@" >> "$log_file" 
+
+    if $verbose; then
+        echo "$(date) -- $@" >&2
+    fi
 }
 Log "=====OT init====="
 
@@ -110,7 +112,7 @@ fi
 
 terminals_to_open=()
 
-Log "Parameters: Split pattern --> $split_pattern || Verbose --> $verbose || Terminal limit --> $terminal_limit || Default extra title --> $terminal_extra_title || Default profile --> $terminator_profile || Open together --> $join_open"
+Log "Parameters: Split pattern --> $split_pattern || Verbose --> $verbose || Terminal limit --> $terminal_limit || Default extra title --> $terminal_extra_title || Default profile --> $terminator_profile || Open together --> $join_open || Auto Authenticate --> $auto_authenticate"
 
 Help(){
     cat <<'____HALP'
@@ -125,7 +127,7 @@ Usage: ot [-h ] [-n NUMBER_OF_TERMINALS ] [-j(v,h,g) TERMINAL_NUMBER ]
           [-t TITLE ] [-v ]
 
 OPTIONS:
-    -v, --verbose                           Shows all comments
+    -v, --verbose                           Shows logs
 
     -h, --help                              Shows help page
 
@@ -177,6 +179,8 @@ CONFIGURATION PARAMS:
 
     autocomplete_by_default                 Sets the autocomplete feature on/off by default
 
+    authenticate_by_default                 If true, ot will attempt to authenticate the ssh client with whatever credentials it has configured
+
     nicknames                               When the default connection mode is used, ot will look for the configured nicknames on the configuration file, 
                                             and grab their connectio_id in order to lookup the connection data. Several nicknames can have the same connection_id
 
@@ -189,6 +193,7 @@ ____HALP
 
 Find_connection_id(){
     nickname="$1"
+    Log "Looking for nickname [ $1 ] . . ."
     conn_id=$( jq ".nicknames | .\"$nickname\"" --raw-output "$path_to_config_file" )
     echo "$conn_id"
 }
@@ -349,16 +354,15 @@ Open_together(){
     while Find_terminal "$join_title";
     do
         ((title_num++))
-        comment "Duplicated title --> $title_num"
+        Log "Duplicated title --> $title_num" 
         join_title="$og_join_title~$title_num" #If we have a duplicated title we add ~n ti te title to keep it unique
     done
 
     #join_title="${terminal_extra_title}${join_title}"
     first_bash_command=$(Get_connection_command "${terminals_to_open[0]}") #We get the connection command for the first terminal we open, the parent of all the rest
     terminator -p "$terminator_profile" -T "$join_title" -x "$first_bash_command"
-    comment "finding terminal $join_title"
+    Log "finding terminal $join_title" 
     uuid="$(Find_terminal "${join_title[@]}")"
-    comment "uuid --> $uuid"
     Log "Terminal found! uuid --> $uuid"
     Log "Split pattern switch: pattern selected --> $split_pattern"
     Split_terminals $uuid
@@ -412,7 +416,7 @@ Get_available_vms(){
 
 
 Test(){
-    comment "Verbose!"
+    Log "Verbose!" 
     Log "Test --!"
     echo "=== Testing title processing ==="
     echo $(Process_title "$1" )
@@ -439,7 +443,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         -s | --separated)
-            comment "Setting join_open to False"
+            Log "Setting join_open to False"
             join_open=false
             ;;
         --see)
@@ -461,7 +465,8 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -v|--verbose)
-            verbose=true #Shows comments
+            Log "Setting verbose to true"
+            verbose=true #Shows logs
             shift
             ;;
         --no-auth)
@@ -472,11 +477,12 @@ while [[ $# -gt 0 ]]; do
         -n)
             number_to_add=$2
             if [[ $number_to_add -gt $terminal_limit ]]; then
-                echo "You probably didn't meant $number_to_add . . ."
+                Log "Warning: tried to add $number_to_add terminals. This exceeds the limit of $terminal_limit so that number of terminals will be added instead."
+                Log "This is a security measure and can be configured in the configuration file, it is recomended to keep the max ammount low to prevent errors."
                 number_to_add=$terminal_limit  #Max number to add should probably be a configurable parameter(it now is)
 
             fi
-            comment "Adding --> $3 X $number_to_add"
+            Log "Adding --> $3 X $number_to_add" 
             for i in $(seq $number_to_add)
             do
                 terminals_to_open+=("$3")
@@ -527,6 +533,7 @@ while [[ $# -gt 0 ]]; do
             shift # past not done yet
             ;;
         -*|--*)
+            Log "Error: Unknown option $1"
             echo "Unknown option $1"
             exit 1
             ;;
@@ -558,8 +565,8 @@ if [[ ${#terminals_to_open[@]} -eq 0 ]]; then
 fi
 
 if $join_open; then
-    comment "Opening together:"
-    comment "${terminals_to_open[@]}"
+    Log "Opening together:" 
+    Log "${terminals_to_open[@]}" 
     Open_together
     exit 0
 fi
