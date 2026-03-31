@@ -155,6 +155,8 @@ OPTIONS:
 
     -c, --show-config                       Shows the configuration of the ot command
 
+    -k, --nickname                          Shows the configured nicknames and their connections
+
 CONFIGURATION FILE:
     Config file default location --> /usr/ot.conf.json
 
@@ -425,7 +427,7 @@ Test(){
     echo "Test done"
 }
 
-Kk(){
+show_nicknames(){
     jq ".nicknames" "$path_to_config_file" 
     jq ".connections" "$path_to_config_file" 
 
@@ -433,8 +435,8 @@ Kk(){
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -kk)
-            Kk
+        -k | --nickname)
+            show_nicknames
             exit 0
             ;;
         --test)
@@ -442,9 +444,10 @@ while [[ $# -gt 0 ]]; do
             Test "$2" 
             exit 0
             ;;
-        -s | --separated)
-            Log "Setting join_open to False"
-            join_open=false
+        -h|--help)
+            Help
+            exit 0
+            shift
             ;;
         --see)
             Get_available_vms
@@ -489,10 +492,9 @@ while [[ $# -gt 0 ]]; do
             done
             shift 3
             ;;
-        -h|--help)
-            Help
-            exit 0
-            shift
+        -s | --separated)
+            Log "Setting join_open to False"
+            join_open=false
             ;;
         -j|--join)
             Log "Setting join_open to True"
