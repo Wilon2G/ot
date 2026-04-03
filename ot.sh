@@ -83,7 +83,7 @@ if [[ -f "$log_file" ]]; then
     fi
 else
     if $verbose; then
-        echo "Log file does not exist"
+        echo "Log file does not exist, creating log file $log_file . . ."
     fi
     touch "$log_file"
 fi
@@ -188,15 +188,16 @@ CONFIGURATION PARAMS:
 
     connections                             Connections are configured with a connection_id and some connection data. The connection data must 
                                             include the complete ip of the vm that we want that connection to use. The connection can also have a
-                                            username and password configured, if not, the default_user and the default_pass will be used instead
+                                            username, password and title configured, if not, the default_user and the default_pass will be used instead
 
 ____HALP
 }
 
 Find_connection_id(){
     nickname="$1"
-    Log "Looking for nickname [ $1 ] . . ."
+    Log "Find_connection_id() -- Looking for the connection id of nickname: [ $1 ] . . ."
     conn_id=$( jq ".nicknames | .\"$nickname\"" --raw-output "$path_to_config_file" )
+    Log "Find_connection_id() -- Result: [ $conn_id ] . . ."
     echo "$conn_id"
 }
 
@@ -209,26 +210,26 @@ Get_connection_command(){
 
         connection_id=$(Find_connection_id $terminal)
         if [[ "$connection_id" == "null" ]]; then
-            Log "ERROR: nickname $terminal not found in the configured nicknames, check the configuration or use the non-default mode"
+            Log "Get_connection_command() -- ERROR: nickname $terminal not found in the configured nicknames, check the configuration or use the non-default mode"
             echo "echo 'FATAL ERROR: the nickname [ $terminal ] is not registered in the config file, check spelling and config file' ; sleep 5"
             return
         fi
         connection_ip=$( jq ".connections | .\"$connection_id\" | .ip" --raw-output "$path_to_config_file" )
         if [[ "$connection_ip" == "null" ]]; then
-            Log "ERROR: connection $connection_id does not have a configured ip, check the configuration or use the non-default mode"
+            Log "Get_connection_command() -- ERROR: connection $connection_id does not have a configured ip, check the configuration or use the non-default mode"
             echo "echo 'FATAL ERROR: the selected connection ($connection_id) does NOT have an ip configured, please check the config file' ; sleep 5"
             return
         fi
         connection_username=$( jq ".connections | .\"$connection_id\" | .user" --raw-output "$path_to_config_file" )
         connection_password=$( jq ".connections | .\"$connection_id\" | .password" --raw-output "$path_to_config_file" )
-        connection_title=$( jq ".connections | .\"$connection_id\" | .title" --raw-output "$path_to_config_file" )
+        #connection_title=$( jq ".connections | .\"$connection_id\" | .title" --raw-output "$path_to_config_file" )
         if [[ "$connection_username" == "null" ]]; then
-            Log "Warning: no username defined for that nickname, using default username"
+            Log "Get_connection_command() -- Warning: no username defined for that nickname, using default username"
             connection_username="$default_user"
             #connection_username=$( jq ".default_user" --raw-output "$path_to_config_file" )
         fi
         if [[ "$connection_password" == "null" ]]; then
-            Log "Warning: no password defined for that nickname, using default password"
+            Log "Get_connection_command() -- Warning: no password defined for that nickname, using default password"
             connection_password="$default_pass"
         fi
 
@@ -241,11 +242,11 @@ Get_connection_command(){
         connection_ip=$terminal
 
     else
-        Log "Error: Unknown operational mode $OPER_MODE"
+        Log "Get_connection_command() -- Error: Unknown operational mode $OPER_MODE"
         exit 1
     fi
 
-    Log "Command: Connecting to $connection_username@$connection_ip password --> $connection_password"
+    Log "Get_connection_command() -- Command: Connecting to $connection_username@$connection_ip password --> $connection_password"
     if $auto_authenticate; then
         echo "echo 'Connecting to $connection_username@$connection_ip' ; sshpass -p '$connection_password' ssh $connection_username@$connection_ip"
     else
@@ -254,12 +255,30 @@ Get_connection_command(){
 }
 
 Get_join_title(){
+    Log "Get_join_title() -- Joining titles . . ."
     conns=$(echo ${terminals_to_open[@]} | tr " " "|")
     echo "$conns"
 }
 
 Process_title(){
     terminal=$1
+    Log "Process_title() -- Processing title for terminal $1"
+    Log "Process_title() -- Extra_title --> $terminal_extra_title"
+    if [[ $terminal_extra_title == "" && $OPER_MODE -eq 0 ]]; then
+        Log "Process_title() -- Checking for a configured title for the nickname $terminal"
+        connection_id=$(Find_connection_id $terminal)
+        if [[ "$connection_id" != "null" ]]; then
+            connection_title=$( jq ".connections | .\"$connection_id\" | .title" --raw-output "$path_to_config_file" )
+            if [[ "$connection_title" != "null" ]]; then
+                Log "Process_title() -- Configured title for $nickname found! --> $connection_title"
+                terminal_extra_title="$connection_title"
+            else
+                Log "Process_title() -- No configured title for $nickname was found"
+            fi
+        else
+            Log "Process_title() -- Configured title not found because nickname $terminal does not have a configured connection"
+        fi
+    fi
     only_extra=${terminal_extra_title:0:1}
     #terminal_extra_title=$( echo ${terminal_extra_title[@]} | tr -d " ")
     if [[ "$only_extra" = "-" ]]; then
@@ -271,7 +290,7 @@ Process_title(){
 
 Find_terminal(){
     title="$@"
-    Log "Finding terminal ---> $title   //"
+    Log "Find_terminal() -- Finding terminal ---> $title"
     all_terminals=($(remotinator get_terminals))
     for terminal in ${all_terminals[@]}
     do
@@ -285,7 +304,7 @@ Find_terminal(){
             return 0
         fi
     done
-    Log "Terminal: $title  --not found"
+    Log "Find_terminal() -- Terminal: $title  not found!"
     return 1
 }
 
@@ -353,20 +372,21 @@ Open_together(){
     join_title=$(Process_title $join_title)
     title_num=0
     og_join_title=$join_title
+    Log "Open_together() -- Checking for duplicated titles . . ." 
     while Find_terminal "$join_title";
     do
         ((title_num++))
-        Log "Duplicated title --> $title_num" 
+        Log "Open_together() -- Duplicated title --> $title_num" 
         join_title="$og_join_title~$title_num" #If we have a duplicated title we add ~n ti te title to keep it unique
     done
 
     #join_title="${terminal_extra_title}${join_title}"
     first_bash_command=$(Get_connection_command "${terminals_to_open[0]}") #We get the connection command for the first terminal we open, the parent of all the rest
     terminator -p "$terminator_profile" -T "$join_title" -x "$first_bash_command"
-    Log "finding terminal $join_title" 
+    #Log "Finding terminal $join_title" 
     uuid="$(Find_terminal "${join_title[@]}")"
-    Log "Terminal found! uuid --> $uuid"
-    Log "Split pattern switch: pattern selected --> $split_pattern"
+    Log "Open_together() -- Terminal found! uuid --> $uuid"
+    Log "Open_together() -- Split pattern switch: pattern selected --> $split_pattern"
     Split_terminals $uuid
 }
 
