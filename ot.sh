@@ -107,6 +107,13 @@ if [[ $OPER_MODE -eq 1 ]]; then
         Log "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
         echo "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
         exit 1
+    else
+        valid_autocomplete_ip=$(echo "$autocomplete_ip" | grep -E "^[0-9][0-9]?[0-9]?\.[0-9][0-9]?[0-9]?\.[0-9][0-9]?[0-9]?\.$")
+        #echo $valid_autocomplete_ip
+        if [[ "$valid_autocomplete_ip" == "" ]]; then
+            Log "WARNING: Autocomplete feature is enabled but the configured ip is not the recomended format: [ xxx.xxx.xxx. ] -Check config file"
+            echo "WARNING: Autocomplete feature is enabled but the configured ip is not the recomended format: [ xxx.xxx.xxx. ] -Check config file"
+        fi
     fi
 fi
 
