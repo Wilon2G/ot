@@ -488,24 +488,24 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -v|--verbose)
-            Log "Setting verbose to true"
+            Log "Args() -- Setting verbose to true"
             verbose=true #Shows logs
             shift
             ;;
         --no-auth)
-            Log "Setting auto authenticate to false"
+            Log "Args() -- Setting auto authenticate to false"
             auto_authenticate=false
             shift
             ;;
         -n)
             number_to_add=$2
             if [[ $number_to_add -gt $terminal_limit ]]; then
-                Log "Warning: tried to add $number_to_add terminals. This exceeds the limit of $terminal_limit so that number of terminals will be added instead."
-                Log "This is a security measure and can be configured in the configuration file, it is recomended to keep the max ammount low to prevent errors."
+                Log "Args() -- Warning: tried to add $number_to_add terminals. This exceeds the limit of $terminal_limit so that number of terminals will be added instead."
+                Log "Args() -- This is a security measure and can be configured in the configuration file, it is recomended to keep the max ammount low to prevent errors."
                 number_to_add=$terminal_limit  #Max number to add should probably be a configurable parameter(it now is)
 
             fi
-            Log "Adding --> $3 X $number_to_add" 
+            Log "Args() -- Adding --> $3 X $number_to_add" 
             for i in $(seq $number_to_add)
             do
                 terminals_to_open+=("$3")
@@ -513,54 +513,54 @@ while [[ $# -gt 0 ]]; do
             shift 3
             ;;
         -s | --separated)
-            Log "Setting join_open to False"
+            Log "Args() -- Setting join_open to False"
             join_open=false
             ;;
         -j|--join)
-            Log "Setting join_open to True"
+            Log "Args() -- Setting join_open to True"
             join_open=true
             shift # past join option
             ;;
         -jv|--joinv)
-            Log "Setting join_pattern to vertical"
+            Log "Args() -- Setting join_pattern to vertical"
             join_open=true
             split_pattern="vertical"
             shift # past join option
             ;;
         -jh|--joinh)
-            Log "Setting join_pattern to horizontal"
+            Log "Args() -- Setting join_pattern to horizontal"
             join_open=true
             split_pattern="horizontal"
             shift # past join option
             ;;
         -jg|--joing)
-            Log "Setting join_pattern to grid"
+            Log "Args() -- Setting join_pattern to grid"
             join_open=true
             split_pattern="grid"
             shift # past join option
             ;;
         -t|--title)
-            Log "Switching extra title from [ $terminal_extra_title ] to [ $2 ]"
+            Log "Args() -- Switching extra title from [ $terminal_extra_title ] to [ $2 ]"
             terminal_extra_title=$( echo "$2" | tr -d " " )
             shift 2
             ;;
         -a|--autocomplete)
-            Log "Warning: default mode disabled, ips will be autocompleted with the configured params"
+            Log "Args() -- Warning: default mode disabled, ips will be autocompleted with the configured params"
             OPER_MODE=1
             shift # past not done yet
             ;;
         -d|--default)
-            Log "Warning: default mode enabled, nickname use enabled and turned on by default"
+            Log "Args() -- Warning: default mode enabled, ot will use the configured nicknames for the connections"
             OPER_MODE=0
             shift # past not done yet
             ;;
         -*|--*)
-            Log "Error: Unknown option $1"
+            Log "Args() -- Error: Unknown option $1"
             echo "Unknown option $1"
             exit 1
             ;;
         *)
-            Log "Adding ot --> $1"
+            Log "Args() -- Adding ot --> $1"
             terminals_to_open+=("$1") # save terminal number/nickname
             shift 
             ;;
