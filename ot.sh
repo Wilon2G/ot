@@ -445,10 +445,6 @@ Get_available_vms(){
 
 
 Test(){
-    Log "Verbose!" 
-    Log "Test --!"
-    echo "=== Testing title processing ==="
-    echo $(Process_title "$1" )
 
     sleep 3
     echo "Test done"
@@ -468,7 +464,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --test)
             echo "Testing . . ."
-            Test "$2" 
+            Test 
             exit 0
             ;;
         -h|--help)
