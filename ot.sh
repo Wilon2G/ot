@@ -11,6 +11,7 @@ join_open=false
 default_user="root" 
 default_pass="" 
 autocomplete_ip="" 
+auto_authenticate=true
 
 #Operational mode types:
 #Default/nicknames --> 0
