@@ -102,16 +102,21 @@ Log "=====OT init====="
 show_all=false
 available_vms=""
 vm_ips=()
-#auto_authenticate=true
+
+# If the operational mode is 1 (autocomplete ip) we check the "autocomplete_ip" field of the configuration 
 if [[ $OPER_MODE -eq 1 ]]; then
+    
+    # If autocomplete_ip is blank it means that there is no autocomplete ip configured 
     if [[ "$autocomplete_ip" == "" ]]; then
-        Log "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
-        echo "WARNING: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
+        # Trying to use ot with autocomplete and without a configured autocomplete_ip param will result in a fatal error
+        Log "ERROR: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
+        echo "ERROR: Autocomplete feature is enabled but no autocomplete_ip is provided by the config file, check config file"
         exit 1
     else
+        # If we do have a configured autocomplete ip we still check that it is in the recomended format
         valid_autocomplete_ip=$(echo "$autocomplete_ip" | grep -E "^[0-9][0-9]?[0-9]?\.[0-9][0-9]?[0-9]?\.[0-9][0-9]?[0-9]?\.$")
-        #echo $valid_autocomplete_ip
         if [[ "$valid_autocomplete_ip" == "" ]]; then
+            # Not having the correct format on the autocomplete_ip param will result in a warning but no error
             Log "WARNING: Autocomplete feature is enabled but the configured ip is not the recomended format: [ xxx.xxx.xxx. ] -Check config file"
             echo "WARNING: Autocomplete feature is enabled but the configured ip is not the recomended format: [ xxx.xxx.xxx. ] -Check config file"
         fi
@@ -213,6 +218,7 @@ Get_connection_command(){
     terminal=$1
     connection_username="$default_user"
     connection_password="$default_pass"
+    connection_auto_auth=$auto_authenticate
 
     if [[ $OPER_MODE -eq 0 ]]; then
 
@@ -228,17 +234,29 @@ Get_connection_command(){
             echo "echo 'FATAL ERROR: the selected connection ($connection_id) does NOT have an ip configured, please check the config file' ; sleep 5"
             return
         fi
+        
         connection_username=$( jq ".connections | .\"$connection_id\" | .user" --raw-output "$path_to_config_file" )
-        connection_password=$( jq ".connections | .\"$connection_id\" | .password" --raw-output "$path_to_config_file" )
-        #connection_title=$( jq ".connections | .\"$connection_id\" | .title" --raw-output "$path_to_config_file" )
         if [[ "$connection_username" == "null" ]]; then
             Log "Get_connection_command() -- Warning: no username defined for that nickname, using default username"
             connection_username="$default_user"
             #connection_username=$( jq ".default_user" --raw-output "$path_to_config_file" )
         fi
-        if [[ "$connection_password" == "null" ]]; then
-            Log "Get_connection_command() -- Warning: no password defined for that nickname, using default password"
-            connection_password="$default_pass"
+
+        #We check if the connection is configured to auto authenticate
+        check_configured_auth=$( jq ".connections | .\"$connection_id\" | .auth" --raw-output "$path_to_config_file" )
+        if [[ "$check_configured_auth" != "null" ]]; then
+            #If a connection is specifically configured with an auto-authentication value we overwrite the general auto_authenticate configuration for this connection
+            connection_auto_auth=$check_configured_auth
+        fi
+
+        #If we need to auto authenticate we try to fetch the password
+        if $connection_auto_auth ; then
+            connection_password=$( jq ".connections | .\"$connection_id\" | .password" --raw-output "$path_to_config_file" )
+            #If there is no configured password we set the connection password back to the default password
+            if [[ "$connection_password" == "null" ]]; then
+                Log "Get_connection_command() -- Warning: no password defined for that nickname, using default password"
+                connection_password="$default_pass"
+            fi
         fi
 
     elif [[ $OPER_MODE -eq 1 ]]; then
@@ -255,13 +273,14 @@ Get_connection_command(){
     fi
 
     Log "Get_connection_command() -- Command: Connecting to $connection_username@$connection_ip password --> $connection_password"
-    if $auto_authenticate; then
+    if $connection_auto_auth; then
         echo "echo 'Connecting to $connection_username@$connection_ip' ; sshpass -p '$connection_password' ssh $connection_username@$connection_ip"
     else
         echo "echo 'Connecting to $connection_username@$connection_ip' ; ssh $connection_username@$connection_ip"
     fi
 }
 
+#Joins the terminals into one string
 Get_join_title(){
     Log "Get_join_title() -- Joining titles . . ."
     conns=$(echo ${terminals_to_open[@]} | tr " " "|")
@@ -586,7 +605,8 @@ if [[ ${#terminals_to_open[@]} -eq 0 ]]; then
 
     OPER_MODE=2
     command_to_execute=$(Get_connection_command "${vm_ips[$selected_vm]}")
-    terminator -T "${vm_ips[$selected_vm]}" -p "$terminator_profile" -x "$command_to_execute"
+    title=$(Process_title ${vm_ips[$selected_vm]})
+    terminator -T "$title" -p "$terminator_profile" -x "$command_to_execute"
     exit 0
 fi
 
