@@ -140,10 +140,12 @@ Usage: ot [-h ] [-n NUMBER_OF_TERMINALS ] [-j(v,h,g) TERMINAL_NUMBER ]
           [-t TITLE ] [-v ]
 
 OPTIONS:
-    -v, --verbose                           Shows logs
-
+    --- Debug ---
     -h, --help                              Shows help page
 
+    -v, --verbose                           Shows logs
+
+    --- Terminal Options ---
     -n <NUMBER_OF_TERMINALS>                Adds n amount of terminals in one go
 
     -j, --join <TERMINAL_NUMBER>            Opens all terminals in the same window with the default split pattern
@@ -156,16 +158,22 @@ OPTIONS:
 
     -t, --title <TITLE>                     Adds extra text to the title of the terminal
 
+    --- Virtual Machines ---
     --see                                   Shows the current available vms on the machine and their IPs
 
     --see-all                               Shows the current available and no avalable vms on the machine and thir IPs/MAC adresses
 
+    --- Authentication ---
     --no-auth                               The srcipt will not try to use the default password, it will be asked from the user
 
+    --- Operational Mode ---
     -d, --default                           Ignores the configuration and restores the default behaviour to open terminals using the configured nicknames
 
     -a, --autocomplete                      Ignores the configuration and sets the autocomplete mode ON. Disables DEFAULT mode
 
+    --full-ip                               Ignores the configuration and disables both autocomplete and default modes - might as well just use ssh
+
+    --- Configuration ---
     -c, --show-config                       Shows the configuration of the ot command
 
     -k, --nickname                          Shows the configured nicknames and their connections
@@ -430,7 +438,7 @@ See_avaiable_machines(){
             vm_bridged_mac_addresses=($(vboxmanage showvminfo --details $vm_uuid | grep "Attachment: Bridged Interface" | grep -o 'MAC: [0-9A-F]\{12\}' | cut -d ' ' -f 2))
 
             for mac_address in ${vm_host_only_mac_addresses[@]}; do
-                vm_ip=($(vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address=$mac_address 2>/dev/null | head -1))
+                vm_ip=($(vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address=$mac_address 2>/dev/null | head -1)) #TODO we only check interface vboxnet0
                 if [[ ${vm_ip[2]} != "" ]]; then
                     echo "[$i] $vm_name --> IP: ${vm_ip[2]}"
                     vm_ips+=(${vm_ip[2]})
@@ -462,7 +470,6 @@ See_avaiable_machines(){
 Get_available_vms(){
     available_vms=($(vboxmanage list runningvms | tr -d " "))
 }
-
 
 Test(){
 
@@ -575,6 +582,11 @@ while [[ $# -gt 0 ]]; do
         -d|--default)
             Log "Args() -- Warning: default mode enabled, ot will use the configured nicknames for the connections"
             OPER_MODE=0
+            shift # past not done yet
+            ;;
+        --full-ip)
+            Log "Args() -- Warning: Operational mode set to 2 manually - Might as well just use ssh for this"
+            OPER_MODE=2
             shift # past not done yet
             ;;
         -*|--*)
