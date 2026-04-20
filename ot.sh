@@ -215,6 +215,12 @@ ____HALP
 }
 
 Find_connection_id(){
+: '
+ --- Connection ID Search ---
+Given a nickname this function queries the configuration file searchig the connection ID of the nickname.
+If a nickname is correctly configured in the configuration file this function will return the connection ID of that nickname.
+If a nickname is not in the configuration file or it is incorrectly configured this function will return null.
+'
     nickname="$1"
     Log "Find_connection_id() -- Looking for the connection id of nickname: [ $1 ] . . ."
     conn_id=$( jq ".nicknames | .\"$nickname\"" --raw-output "$path_to_config_file" )
@@ -250,17 +256,17 @@ Get_connection_command(){
             #connection_username=$( jq ".default_user" --raw-output "$path_to_config_file" )
         fi
 
-        #We check if the connection is configured to auto authenticate
+        #Check if the connection is configured to auto authenticate
         check_configured_auth=$( jq ".connections | .\"$connection_id\" | .auth" --raw-output "$path_to_config_file" )
         if [[ "$check_configured_auth" != "null" ]]; then
-            #If a connection is specifically configured with an auto-authentication value we overwrite the general auto_authenticate configuration for this connection
+            #If a connection is specifically configured with an auto-authentication value the general auto_authenticate get's overwritten for this connection
             connection_auto_auth=$check_configured_auth
         fi
 
-        #If we need to auto authenticate we try to fetch the password
+        #If configured to auto authenticate the function tries to fetch the password
         if $connection_auto_auth ; then
             connection_password=$( jq ".connections | .\"$connection_id\" | .password" --raw-output "$path_to_config_file" )
-            #If there is no configured password we set the connection password back to the default password
+            #If there is no configured password the connection password is set back to the default password
             if [[ "$connection_password" == "null" ]]; then
                 Log "Get_connection_command() -- Warning: no password defined for that nickname, using default password"
                 connection_password="$default_pass"
@@ -296,6 +302,15 @@ Get_join_title(){
 }
 
 Process_title(){
+: '
+ --- Title Processing ---
+1- Check if estra title is not set and Operational Mde is default (use nicknames). 
+    1.1- If those conditions are met this function fetchs the connection ID of the nickname. 
+    1.2- If success when fetching the connection ID this function checks if the connection has a preconfigured title.
+    1.3- If an extra title is configured for that specific connection it is used as the terminal_extra_title.
+2- Check the first character of the terminal_extra_title string, if it is "-" the function returns only the terminal_extra_title string without the first character,
+if not, the function returns the combination of the strings in termianl_extra_title and terminal.
+'
     terminal=$1
     Log "Process_title() -- Processing title for terminal $1"
     Log "Process_title() -- Extra_title --> $terminal_extra_title"
@@ -401,9 +416,22 @@ Split_terminals(){
 }
 
 Open_together(){
-    join_title="$(Get_join_title)"
+: '
+ --- Openning Together ---
+1- Call function Get_join_title().
+2- Call function Process_title().
+3- This function must ensure that the title of the terminal to be opnened is unique as it is used to find the uuid:
+    3.1- This function loops while the return of the function Find_terminal() is true.
+    3.2- If the return of Find_terminal() is true, the counter of terminals with the same title increases by one. Then the title is set to the combination
+    of the original title and the counter of terminals with the same title.
+    3.3- When the return value of the function Find_terminal() is false, the function exits the loop.
+4- Call function Get_connection_command(). 
+5- The function opens the terminator terminal that will be the parent of the rest of the terminals.
+6- Call function Find_terminal() to find the uuid of the parent terminal that was just openned.
+7- Call function Split_terminals() with the uuid of the parent terminal.
+'
 
-    #We find if there is already a terminal opened with that title, since we get the uuid of the terminal via de window title, we need the join terminals to have unique titles
+    join_title="$(Get_join_title)"
     join_title=$(Process_title $join_title)
     title_num=0
     og_join_title=$join_title
@@ -412,13 +440,11 @@ Open_together(){
     do
         ((title_num++))
         Log "Open_together() -- Duplicated title --> $title_num" 
-        join_title="$og_join_title~$title_num" #If we have a duplicated title we add ~n ti te title to keep it unique
+        join_title="$og_join_title~$title_num"
     done
 
-    #join_title="${terminal_extra_title}${join_title}"
-    first_bash_command=$(Get_connection_command "${terminals_to_open[0]}") #We get the connection command for the first terminal we open, the parent of all the rest
+    first_bash_command=$(Get_connection_command "${terminals_to_open[0]}")
     terminator -p "$terminator_profile" -T "$join_title" -x "$first_bash_command"
-    #Log "Finding terminal $join_title" 
     uuid="$(Find_terminal "${join_title[@]}")"
     Log "Open_together() -- Terminal found! uuid --> $uuid"
     Log "Open_together() -- Split pattern switch: pattern selected --> $split_pattern"
@@ -480,9 +506,9 @@ Test(){
 show_nicknames(){
     jq ".nicknames" "$path_to_config_file" 
     jq ".connections" "$path_to_config_file" 
-
 }
 
+#Argument processing
 while [[ $# -gt 0 ]]; do
     case $1 in
         -k | --nickname)
@@ -615,7 +641,7 @@ if [[ ${#terminals_to_open[@]} -eq 0 ]]; then
     read -p "--> " selected_vm
     ((selected_vm--))
 
-    OPER_MODE=2
+    OPER_MODE=2     #Operational mode is forced to 2 (full IP/see & select) if no terminals are provided to the ot command
     command_to_execute=$(Get_connection_command "${vm_ips[$selected_vm]}")
     title=$(Process_title ${vm_ips[$selected_vm]})
     terminator -T "$title" -p "$terminator_profile" -x "$command_to_execute"
