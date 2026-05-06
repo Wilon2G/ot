@@ -13,11 +13,15 @@ default_pass=""
 autocomplete_ip="" 
 auto_authenticate=true
 
-#Operational mode types:
-#Default/nicknames --> 0
-#Autocomplete --> 1
-#Full IP/see & select --> 2
+
+: '
+ --- Operational mode types ---
+Default/nicknames --> 0
+Autocomplete --> 1
+Full IP/see & select --> 2
+'
 OPER_MODE=0
+WIRESHARK_MODE=false
 
 path_to_config_file="/etc/ot.conf.json"
 if test -f ${path_to_config_file}; then
@@ -286,12 +290,19 @@ Get_connection_command(){
         exit 1
     fi
 
-    Log "Get_connection_command() -- Command: Connecting to $connection_username@$connection_ip password --> $connection_password"
-    if $connection_auto_auth; then
-        echo "echo 'Connecting to $connection_username@$connection_ip' ; sshpass -p '$connection_password' ssh $connection_username@$connection_ip"
+    if $WIRESHARK_MODE; then
+
+        Log "WIRESHARK command in progress . . ."
+        echo "echo 'Connecting to $connection_username@$connection_ip' ; sshpass -p '$connection_password' ssh $connection_username@$connection_ip 'tcpdump -i any not port ssh -s0 -w -' | wireshark -k -i- -ogui.window_title:OT_OPENS"
     else
-        echo "echo 'Connecting to $connection_username@$connection_ip' ; ssh $connection_username@$connection_ip"
+        Log "Get_connection_command() -- Command: Connecting to $connection_username@$connection_ip password --> $connection_password"
+        if $connection_auto_auth; then
+            echo "echo 'Connecting to $connection_username@$connection_ip' ; sshpass -p '$connection_password' ssh $connection_username@$connection_ip"
+        else
+            echo "echo 'Connecting to $connection_username@$connection_ip' ; ssh $connection_username@$connection_ip"
+        fi
     fi
+
 }
 
 #Joins the terminals into one string
@@ -455,6 +466,7 @@ See_avaiable_machines(){
     if [[ "$available_vms" == "" ]]; then
         echo "No available VMs"
     else
+        unknown_machines=false
         i=1
         for entry in "${available_vms[@]}"; do
             vm_name_uuid=($(echo $entry | tr -d "}" | tr "{" " "))
@@ -481,15 +493,20 @@ See_avaiable_machines(){
                     vm_ips+=($formatted_vm_ip)
                     ((i++))
                 else
+                    unknown_machines=true
                     if $show_all; then
                         echo "[-] $vm_name --> IP: ??? // mac: $formatted_mac_address"
                     fi
                 fi
             done
-            #vm_ip=($(vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address=$mac_address 2>/dev/null | head -1))
-            #formatted_mac_address=$(echo $mac_address | sed 's/\(..\)/\1:/g; s/:$//' )
-            #echo "[$i] $vm_name --> IP: ${vm_ip[2]}"
         done
+        if $unknown_machines ; then
+            brute_find_ips=false
+            read -p "Warning: Unknown machines in the system, use brute force to find IPs? (y/N)" brute_find_ips 
+            if [[ "$brute_find_ips" == "y" ]]; then
+                for i in {1..254}; do ping -c 1 -W 1 $autocomplete_ip$i & done; wait
+            fi
+        fi
     fi
 }
 
@@ -615,6 +632,11 @@ while [[ $# -gt 0 ]]; do
             OPER_MODE=2
             shift # past not done yet
             ;;
+        -w)
+            Log "WIRESHARK MODE -- TEST "
+            WIRESHARK_MODE=true
+            shift
+            ;;
         -*|--*)
             Log "Args() -- Error: Unknown option $1"
             echo "Unknown option $1"
@@ -627,6 +649,17 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if $WIRESHARK_MODE; then
+    Log "--- $USER ---"
+    for terminal in ${terminals_to_open[@]}
+    do
+        command_to_execute=$(Get_connection_command "$terminal")
+        terminator -x "sudo $command_to_execute"
+        #eval $command_to_execute
+        exit 0;
+    done
+fi
 
 if [[ ${#terminals_to_open[@]} -eq 0 ]]; then 
     echo "Select a terminal from your system:"
@@ -654,6 +687,7 @@ if $join_open; then
     Open_together
     exit 0
 fi
+
 
 Log "Opening separate terminals: ${terminals_to_open[@]}"
 for terminal in ${terminals_to_open[@]}
