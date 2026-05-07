@@ -657,8 +657,8 @@ if $WIRESHARK_MODE; then
         command_to_execute=$(Get_connection_command "$terminal")
         terminator -x "sudo $command_to_execute"
         #eval $command_to_execute
-        exit 0;
     done
+    exit 0;
 fi
 
 if [[ ${#terminals_to_open[@]} -eq 0 ]]; then 
@@ -675,10 +675,12 @@ if [[ ${#terminals_to_open[@]} -eq 0 ]]; then
     ((selected_vm--))
 
     OPER_MODE=2     #Operational mode is forced to 2 (full IP/see & select) if no terminals are provided to the ot command
-    command_to_execute=$(Get_connection_command "${vm_ips[$selected_vm]}")
-    title=$(Process_title ${vm_ips[$selected_vm]})
-    terminator -T "$title" -p "$terminator_profile" -x "$command_to_execute"
-    exit 0
+    terminals_to_open+=${vm_ips[$selected_vm]}
+
+    #command_to_execute=$(Get_connection_command "${vm_ips[$selected_vm]}")
+    #title=$(Process_title ${vm_ips[$selected_vm]})
+    #terminator -T "$title" -p "$terminator_profile" -x "$command_to_execute"
+    #exit 0
 fi
 
 if $join_open; then
