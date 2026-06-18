@@ -1,5 +1,7 @@
 #!/bin/bash 
 
+# USE VM like name as default nick
+
 #Configurable params default values
 verbose=false 
 log_file="/var/log/ot.log" 
@@ -177,6 +179,9 @@ OPTIONS:
 
     --full-ip                               Ignores the configuration and disables both autocomplete and default modes - might as well just use ssh
 
+    --- Command Mode ---
+    -w                                      Executes a wireshark pcap on the terminal to the selected connection [in develpment]
+
     --- Configuration ---
     -c, --show-config                       Shows the configuration of the ot command
 
@@ -293,7 +298,7 @@ Get_connection_command(){
     if $WIRESHARK_MODE; then
 
         Log "WIRESHARK command in progress . . ."
-        echo "echo 'Connecting to $connection_username@$connection_ip' ; sshpass -p '$connection_password' ssh $connection_username@$connection_ip 'tcpdump -i any not port ssh -s0 -w -' | wireshark -k -i- -ogui.window_title:OT_OPENS"
+        echo "echo 'Connecting to $connection_username@$connection_ip' ; sshpass -p '$connection_password' ssh $connection_username@$connection_ip 'tcpdump -i any not port ssh -s0 -w -' | wireshark -k -i- -ogui.window_title:$connection_ip"
     else
         Log "Get_connection_command() -- Command: Connecting to $connection_username@$connection_ip password --> $connection_password"
         if $connection_auto_auth; then
@@ -502,7 +507,7 @@ See_avaiable_machines(){
         done
         if $unknown_machines ; then
             brute_find_ips=false
-            read -p "Warning: Unknown machines in the system, use brute force to find IPs? (y/N)" brute_find_ips 
+            read -p "Warning: Unknown machines in the system, use brute force to find IPs? (y/N): " brute_find_ips 
             if [[ "$brute_find_ips" == "y" ]]; then
                 for i in {1..254}; do ping -c 1 -W 1 $autocomplete_ip$i & done; wait
             fi
@@ -570,21 +575,6 @@ while [[ $# -gt 0 ]]; do
             auto_authenticate=false
             shift
             ;;
-        -n)
-            number_to_add=$2
-            if [[ $number_to_add -gt $terminal_limit ]]; then
-                Log "Args() -- Warning: tried to add $number_to_add terminals. This exceeds the limit of $terminal_limit so that number of terminals will be added instead."
-                Log "Args() -- This is a security measure and can be configured in the configuration file, it is recomended to keep the max ammount low to prevent errors."
-                number_to_add=$terminal_limit  #Max number to add should probably be a configurable parameter(it now is)
-
-            fi
-            Log "Args() -- Adding --> $3 X $number_to_add" 
-            for i in $(seq $number_to_add)
-            do
-                terminals_to_open+=("$3")
-            done
-            shift 3
-            ;;
         -s | --separated)
             Log "Args() -- Setting join_open to False"
             join_open=false
@@ -612,11 +602,6 @@ while [[ $# -gt 0 ]]; do
             split_pattern="grid"
             shift # past join option
             ;;
-        -t|--title)
-            Log "Args() -- Switching extra title from [ $terminal_extra_title ] to [ $2 ]"
-            terminal_extra_title=$( echo "$2" | tr -d " " )
-            shift 2
-            ;;
         -a|--autocomplete)
             Log "Args() -- Warning: default mode disabled, ips will be autocompleted with the configured params"
             OPER_MODE=1
@@ -636,6 +621,26 @@ while [[ $# -gt 0 ]]; do
             Log "WIRESHARK MODE -- TEST "
             WIRESHARK_MODE=true
             shift
+            ;;
+        -t|--title)
+            Log "Args() -- Switching extra title from [ $terminal_extra_title ] to [ $2 ]"
+            terminal_extra_title=$( echo "$2" | tr -d " " )
+            shift 2
+            ;;
+        -n)
+            number_to_add=$2
+            if [[ $number_to_add -gt $terminal_limit ]]; then
+                Log "Args() -- Warning: tried to add $number_to_add terminals. This exceeds the limit of $terminal_limit so that number of terminals will be added instead."
+                Log "Args() -- This is a security measure and can be configured in the configuration file, it is recomended to keep the max ammount low to prevent errors."
+                number_to_add=$terminal_limit  #Max number to add should probably be a configurable parameter(it now is)
+
+            fi
+            Log "Args() -- Adding --> $3 X $number_to_add" 
+            for i in $(seq $number_to_add)
+            do
+                terminals_to_open+=("$3")
+            done
+            shift 3
             ;;
         -*|--*)
             Log "Args() -- Error: Unknown option $1"
